@@ -4,8 +4,9 @@ from sklearn.model_selection import train_test_split
 
 class CDOTData(object):
 
-    def __init__(self):
+    def __init__(self,proj_max = 12000000):
         self.X, self.y = self._create_X_y()
+        self.proj_max = proj_max
 
     def _fill_feature(self, empty_df,dense_df):
         '''
@@ -42,11 +43,13 @@ class CDOTData(object):
         drop_rows_target: set, the rows in the target that are not
             contained in the feature set
         '''
-        feature_projects = set(feature_data.index)
-        target_projects = set(target_data.index)
-        rows_to_keep = feature_projects.intersection(target_projects)
-        drop_rows_feature = feature_projects - rows_to_keep
-        drop_rows_target = target_projects - rows_to_keep
+        # Which projects are contained in both the bid item and total price datasets
+        rows_to_keep = set(feature_data.index).intersection(set(target_data.index))
+
+        # Determine which rows to drop in each data set
+        drop_rows_feature = set(feature_data.index) - rows_to_keep
+        drop_rows_target = set(target_data.index) - rows_to_keep
+
         return rows_to_keep, drop_rows_feature, drop_rows_target
 
     def _import_target_data(self):
@@ -55,7 +58,7 @@ class CDOTData(object):
         '''
 
         df = pd.read_csv('data/raw_data/bidding_info.csv',
-                 usecols=['Proposal Number','Bid Total','Engineers Estimate', 'Awarded'],
+                usecols=['Proposal Number','Bid Total','Engineers Estimate', 'Awarded'],
                 index_col = 'Proposal Number')
         df = df[df.Awarded == 1].drop('Awarded',axis=1)
         df.columns = ['bid_total','engineers_estimate']
@@ -65,7 +68,7 @@ class CDOTData(object):
         '''
         Parameters
         ----------
-            None
+        None
 
         Output
         ------
@@ -74,6 +77,8 @@ class CDOTData(object):
         y: pandas dataframe, target matrix, contains the actual target as
             well as CDOT's estimate
         '''
+
+        print ('Importing and cleaning project data... \n')
 
         feature_data = pd.read_csv('data/raw_data/cont_itm.csv',
             usecols=['CONT_ID','ITM_CD','SPC_YR','BID_QTY'],
@@ -105,11 +110,16 @@ class CDOTData(object):
             all_data[col] = self.y[col]
         all_data.index.name = 'project_number'
 
-        train,test = train_test_split(all_data)
+        data = all_data[all_data.engineers_estimate < self.proj_max]
+        data.fillna(0,inplace=True)
 
+        train,test = train_test_split(data)
+
+        data.to_csv('data/data.csv')
         train.to_csv('data/train.csv')
         test.to_csv('data/test.csv')
 
+        print ('Datasets Created \n')
 
 if __name__ == '__main__':
     data = CDOTData()

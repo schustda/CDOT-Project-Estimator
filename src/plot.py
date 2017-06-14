@@ -27,11 +27,11 @@ def asphalt_prices(p,y):
 
 class Plotting(object):
 
-    def __init__(self,data,model,mlp = False):
+    def __init__(self,data,model,plotname = None):
 
         self.data = data
         self.model = model
-        self.mlp = mlp
+        self.plotname = plotname
 
     def engr_v_model_box(self):
 
@@ -44,14 +44,13 @@ class Plotting(object):
             fliersize = 0)
         ax.set_xticklabels(['Engineer Error','Test Model Error'],fontdict={'fontsize':14,'fontweight':1000})
         ax.set_ylabel('Percent from Actual',fontdict={'fontsize':14,'fontweight':1000})
-        ax.set_title("CDOT Estimator vs Machine Learning Model",fontdict={'fontsize':18,'fontweight':1000})
+        ax.set_title("CDOT Estimator vs Machine Learning Model "+str(self.plotname),fontdict={'fontsize':18,'fontweight':1000})
         ax.set_ylim([-110,160])
-        plt.savefig('images/boxplot.png')
+        plt.savefig('images/boxplot'+str(self.plotname)+'.png')
 
     def vs_actual_scatter(self):
 
         y_engr,y_model,X = self.X_y(self.data,self.model)
-
         plt.close('all')
 
         #Plots
@@ -65,33 +64,24 @@ class Plotting(object):
         #Labels
         ax.set_ylabel('Predicted Cost ($M)',fontdict={'fontsize':14,'fontweight':1000})
         ax.set_xlabel('Actual Project Cost ($M)',fontdict={'fontsize':14,'fontweight':1000})
-        ax.set_title('CDOT Estimator vs. Model', fontdict={'fontsize':18,'fontweight':1000})
-        # ax.set_xticklabels([0,0,2,4,6,8,10,12])
-        # ax.set_yticklabels([0,0,2,4,6,8,10,12])
+        ax.set_title('Estimator v Model'+str(self.plotname), fontdict={'fontsize':18,'fontweight':1000})
         ax.legend()
 
         #Export Figure
-        plt.savefig('images/model_engr_scatter.png')
+        plt.savefig('images/'+str(self.plotname)+'.png')
 
     def percent_error(self, df,model):
         engineers_estimate = df.engineers_estimate.values
         y_true = df.bid_total
         X = df.drop(['engineers_estimate','bid_total'],axis=1)
-        if self.mlp:
-            X = X.values
-            y_true = y_true.values
         y_predict = model.predict(X)
         engineers_error = (engineers_estimate-y_true) / ((engineers_estimate+y_true)/2) * 100
         model_error = (y_predict-y_true) / ((y_predict+y_true)/2) * 100
-        if self.mlp:
-            return np.concatenate([[engineers_error,model_error]]).T
         return pd.concat([engineers_error,model_error],axis=1)
 
     def X_y(self, df, model):
         X_engr = df.engineers_estimate
         X = df.drop(['engineers_estimate','bid_total'],axis=1)
-        if self.mlp:
-            X = X.values
         X_model = model.predict(X)
         y = df.bid_total
         return X_engr,X_model,y

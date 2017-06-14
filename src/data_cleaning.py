@@ -4,9 +4,9 @@ from sklearn.model_selection import train_test_split
 
 class CDOTData(object):
 
-    def __init__(self,proj_max = 12000000):
-        self.X, self.y = self._create_X_y()
+    def __init__(self,proj_max = 100000000,full_dataset_created = True):
         self.proj_max = proj_max
+        self.full_dataset_created = full_dataset_created
 
     def _fill_feature(self, empty_df,dense_df):
         '''
@@ -17,8 +17,8 @@ class CDOTData(object):
         dense_df: pandas dataframe, a dataframe coordinates to use to fill
             the empty matrix
 
-        Output
-        ------
+        Returns
+        -------
         filled_df: pandas dataframe, feature matrix
         '''
         for row in dense_df.iterrows():
@@ -34,8 +34,8 @@ class CDOTData(object):
         feature_data: pandas dataframe, the feature matrix
         target_data: pandas dataframe, the target matrix
 
-        Output
-        ------
+        Returns
+        -------
         rows_to_keep: set, the rows that both the target and feature
             set contain
         drop_rows_feature: set, the rows in the feature that are not
@@ -43,8 +43,10 @@ class CDOTData(object):
         drop_rows_target: set, the rows in the target that are not
             contained in the feature set
         '''
+        # outliers = set(['C19037'])
+
         # Which projects are contained in both the bid item and total price datasets
-        rows_to_keep = set(feature_data.index).intersection(set(target_data.index))
+        rows_to_keep = set(feature_data.index).intersection(set(target_data.index)) - outliers
 
         # Determine which rows to drop in each data set
         drop_rows_feature = set(feature_data.index) - rows_to_keep
@@ -70,8 +72,8 @@ class CDOTData(object):
         ----------
         None
 
-        Output
-        ------
+        Returns
+        -------
         X: pandas dataframe, feature matrix of each project as a row and
             each item number as a feature
         y: pandas dataframe, target matrix, contains the actual target as
@@ -105,22 +107,31 @@ class CDOTData(object):
         '''
         Creates train.csv and test.csv within the data folder
         '''
-        all_data = self.X.copy()
-        for col in self.y.columns:
-            all_data[col] = self.y[col]
-        all_data.index.name = 'project_number'
 
-        data = all_data[all_data.engineers_estimate < self.proj_max]
-        data.fillna(0,inplace=True)
+        # Create the full dataset if not yet existing
+        if not self.full_dataset_created:
+            self.X, self.y = self._create_X_y()
+            full_dataset = self.X.copy()
+            for col in self.y.columns:
+                full_dataset[col] = self.y[col]
+            full_dataset.index.name = 'project_number'
+            full_dataset.fillna(0,inplace=True)
+            full_dataset.to_csv('data/full_dataset.csv')
 
+        # If the full dataset does exist, load it...
+        else:
+            full_dataset = pd.read_csv('data/full_dataset.csv',index_col='project_number')
+
+        # Reduce number of projects to the original scope
+        data = full_dataset[full_dataset.engineers_estimate < self.proj_max]
+
+        # Split and save to train.csv and test.csv
+        print('Splitting train and test data...')
         train,test = train_test_split(data)
-
-        data.to_csv('data/data.csv')
         train.to_csv('data/train.csv')
         test.to_csv('data/test.csv')
-
         print ('Datasets Created \n')
 
 if __name__ == '__main__':
-    data = CDOTData()
-    df = data._import_target_data()
+    data = CDOTData(10000000)
+    df = data.create_train_test()

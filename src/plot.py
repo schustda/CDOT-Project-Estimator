@@ -1,108 +1,117 @@
+import seaborn as sns
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.externals import joblib
-import pickle
-from src.data_cleaning import CDOTData
+from src.model import CDOTModel
 
-def plot_hist(data):
+
+def asphalt_prices(p,y):
     plt.close('all')
-    plt.style.use('fivethirtyeight')
-    plt.hist(data)
-    plt.savefig('images/hist.png')
 
-def project_prices(data):
-    plt.style.use('seaborn')
-    plt.close('all')
-    fig, ax = plt.subplots()
+    #Plots
+    ax = sns.pointplot(x = y,y=p,fit_reg = False,
+    scatter_kws={"s": 20, 'alpha' : .7}, label = 'Asphalt Prices')
 
-    df = data.sort_values('engineers_estimate')
+    #Labels
+    ax.set_xlabel('Year',fontdict={'fontsize':14,'fontweight':1000})
+    ax.set_ylabel('Cost ($/Ton)',fontdict={'fontsize':14,'fontweight':1000})
+    ax.set_title('Hot Mix Asphalt Prices', fontdict={'fontsize':18,'fontweight':1000})
+    ax.set_xticklabels([2012,'','','',2013,'','','',2014,'','','',2015,'','','',2016])
+    # ax.set_yticklabels([0,0,2,4,6,8,10,12])
+    ax.legend()
 
-    ax.scatter(range(df.shape[0]),df['engineers_estimate'],s=1,alpha=0.5)
-    ax.plot([0,1500],[10000000,10000000],color='black',ls='dashed')
-    ax.text(150,11000000,'Model includes projects under $10M',fontdict={'fontsize':10})
+    #Export Figure
+    plt.savefig('images/asphalt_prices.png')
 
-    ax.set_ylabel('Estimated Project Cost ($10M)')
-    ax.set_xlabel('1,400 CDOT Projects')
-    ax.set_title('CDOT Estimates by Individual Project',fontdict={'fontsize':20,'fontweight':1000})
-    ax.set_xticklabels('')
-    ax.set_ylim(bottom = 0,top = 50000000)
-    ax.set_xlim(left = 0,right = 1500)
-    plt.savefig('images/bar.png')
 
-# def plot(filename):
-#     plt.close('all')
-#     plt.style.use('seaborn')
-#     plt.bar(x_axis,engineers_estimate,label='engineers_estimate',alpha = 0.5)
-#     plt.bar(x_axis,y_predict,label='estimate_predictions',alpha = 0.5)
-#     plt.bar(x_axis,y_true,label='actual_winning_bid',alpha = 0.5)
-#     plt.legend()
-#     plt.savefig('images/plot2-1.png')
+class Plotting(object):
 
-def engineer_vs_model(data):
-    plt.style.use('ggplot')
-    fig, ax = plt.subplots()
+    def __init__(self,data,model,mlp = False):
 
-    ax.boxplot(data,
-    labels = ['Engineer Error','Test Model Error'],
-    positions = [1,1.3],
-    widths = 0.1,
-    patch_artist = {'color': '#074F57'},
-    manage_xticks = True,
-    showfliers = False,
-    capprops = {'color': '#074F57','linewidth':2},
-    whiskerprops = {'color': '#074F57','linewidth':2},
-    flierprops = {'color': '#074F57','linewidth':2},
-    boxprops = {'facecolor':'#077187', 'color': '#074F57','linewidth':2},
-    medianprops = {'color': '#74A57F','linewidth':3})
+        self.data = data
+        self.model = model
+        self.mlp = mlp
 
-    ax.set_ylabel('Percent difference between true and actual (%)',fontdict={'fontsize':14,'fontweight':500})
-    ax.set_title("CDOT Estimator vs Machine Learning Model",fontdict={'fontsize':20,'fontweight':1000})
-    plt.savefig('images/engineer_vs_model2.png')
+    def engr_v_model_box(self):
 
-def generate_error(df,model):
-    engineers_estimate = df.engineers_estimate.values
-    y_true = df.bid_total.valueste
-    y_predict = model.predict(df.drop(['engineers_estimate','bid_total'],axis=1).values)
-    engineers_error = (engineers_estimate-y_true) / ((engineers_estimate+y_true)/2) * 100
-    model_error = (y_predict-y_true) / ((y_predict+y_true)/2) * 100
+        boxplot_data = self.percent_error(self.data,self.model)
 
-    return np.concatenate([[engineers_error,model_error]]).T
+        sns.set_style('darkgrid')
+        ax = sns.boxplot(data = boxplot_data,
+            palette="muted",
+            width = 0.2,
+            fliersize = 0)
+        ax.set_xticklabels(['Engineer Error','Test Model Error'],fontdict={'fontsize':14,'fontweight':1000})
+        ax.set_ylabel('Percent from Actual',fontdict={'fontsize':14,'fontweight':1000})
+        ax.set_title("CDOT Estimator vs Machine Learning Model",fontdict={'fontsize':18,'fontweight':1000})
+        ax.set_ylim([-110,160])
+        plt.savefig('images/boxplot.png')
+
+    def vs_actual_scatter(self):
+
+        y_engr,y_model,X = self.X_y(self.data,self.model)
+
+        plt.close('all')
+
+        #Plots
+        ax = sns.regplot(x = X,y=y_engr,fit_reg = False,
+            label = "Engineer Estimate",scatter_kws={"s": 20, 'alpha' : .7})
+        ax = sns.regplot(x = X,y=y_model,fit_reg = False,
+            label = "Model Estimate",scatter_kws={"s": 20, 'alpha' : .7})
+        plt.plot([0,X.max()*1.1],[0,X.max()*1.1],color = 'black',
+            linestyle = '--', alpha = 0.4)
+
+        #Labels
+        ax.set_ylabel('Predicted Cost ($M)',fontdict={'fontsize':14,'fontweight':1000})
+        ax.set_xlabel('Actual Project Cost ($M)',fontdict={'fontsize':14,'fontweight':1000})
+        ax.set_title('CDOT Estimator vs. Model', fontdict={'fontsize':18,'fontweight':1000})
+        # ax.set_xticklabels([0,0,2,4,6,8,10,12])
+        # ax.set_yticklabels([0,0,2,4,6,8,10,12])
+        ax.legend()
+
+        #Export Figure
+        plt.savefig('images/model_engr_scatter.png')
+
+    def percent_error(self, df,model):
+        engineers_estimate = df.engineers_estimate.values
+        y_true = df.bid_total
+        X = df.drop(['engineers_estimate','bid_total'],axis=1)
+        if self.mlp:
+            X = X.values
+            y_true = y_true.values
+        y_predict = model.predict(X)
+        engineers_error = (engineers_estimate-y_true) / ((engineers_estimate+y_true)/2) * 100
+        model_error = (y_predict-y_true) / ((y_predict+y_true)/2) * 100
+        if self.mlp:
+            return np.concatenate([[engineers_error,model_error]]).T
+        return pd.concat([engineers_error,model_error],axis=1)
+
+    def X_y(self, df, model):
+        X_engr = df.engineers_estimate
+        X = df.drop(['engineers_estimate','bid_total'],axis=1)
+        if self.mlp:
+            X = X.values
+        X_model = model.predict(X)
+        y = df.bid_total
+        return X_engr,X_model,y
+
 
 if __name__ == '__main__':
-    plt.close('all')
-    plt.style.use('seaborn')
-    model = joblib.load('data/model.pkl')
 
-
-    # df = pd.read_csv('data/data.csv',usecols=['engineers_estimate']).sort_values('engineers_estimate')
-    # plot_hist(y)
-    # plot_bar(df)
-
-    #
-    # train = pd.read_csv('data/train.csv',index_col='project_number')
-    #
-    # x_axis = range(len(train.index.values))
-
-
+    sns.set(style = 'white', palette = 'deep')
     test = pd.read_csv('data/test.csv',index_col='project_number')
-    test_data = generate_error(test,model)
-    engineer_vs_model(test_data)
+    model = CDOTModel()
 
-    # train = pd.read_csv('data/train.csv',index_col='project_number')
-    # train_data = generate_error(train,model)
-    # engineer_vs_model(train_data)
+    plot = Plotting(test,model)
+    plot.vs_actual_scatter()
+    plot.engr_v_model_box()
+    # a = plot.engr_v_model_box()
 
-    # plot()
-    # boxplot(np.concatenate([[test_engineer_error,test_model_error]]).T,('engineers_estimate_error','model_error'),'test error','test_boxplot3.png')
 
-    #train
-    # train_eng = train.engineers_estimate.values
-    # train_y_true = train.bid_total.values
-    # train_y_predict = model.predict(train.drop(['engineers_estimate','bid_total'],axis=1).values)
-    #
-    # train_engineer_error = (train_eng-train_y_true)/((train_eng+train_y_true)/2)
-    # train_model_error = (train_y_predict-train_y_true)/((train_y_predict+train_y_true)/2)
 
-    # plot()
-    # boxplot(np.concatenate([[train_engineer_error,train_model_error]]).T,('engineers_estimate_error','model_error'),'train error','train_boxplot3.png')
+    # Plotting asphalt price history
+    # asphalt_prices_history = np.array([83.52,82.65,90.76,102.24,76.07,84.37,85,
+    # 80.78,92.28,88.13,100.07,113.42,83.80,94.22,98.61,81.21,84.03])
+    # y = np.array(range(len(asphalt_prices_history)))
+    # asphalt_prices(asphalt_prices_history, y)

@@ -123,4 +123,4 @@ class CDOTData(object):
 
 if __name__ == '__main__':
     data = CDOTData()
-    data.create_train_test()
+    df = data._import_target_data()

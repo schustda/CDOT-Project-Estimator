@@ -103,16 +103,17 @@ def add_unit_prices():
     Returns
     -------
     unit_prices : array-like, shape (features_with_unit_prices, n_features).
-    Matrix with each feature corresponding with the  
+        Matrix with the corresponding feature set to a value of 1, and the
+        target being the estimated unit prices for that feature
     '''
-    df = pd.read_csv('data/raw_data/cont_itm.csv',usecols=['UNT_PRIC','ITM_CD'])
-    grp = df.groupby('ITM_CD').agg({'UNT_PRIC':'mean'})
+    up = pd.read_csv('data/raw_data/cont_itm.csv',usecols=['UNT_PRIC','ITM_CD'])
+    grp_up = up.groupby('ITM_CD').agg({'UNT_PRIC':'mean'})
     itm_lst = grp.shape[0]
-    a = np.zeros((itm_lst,itm_lst))
-    np.fill_xdiagonal(a,0.75)
-    df2 = pd.DataFrame(a,columns=grp.index,index=grp.index)
-    df2['UNT_PRIC'] = grp.UNT_PRIC
-    return df2
+    empty_matrix = np.zeros((itm_lst,itm_lst))
+    np.fill_xdiagonal(empty_matrix,1)
+    unit_prices = pd.DataFrame(a,columns=grp.index,index=grp.index)
+    unit_prices['UNT_PRIC'] = grp.UNT_PRIC
+    return unit_prices
 
 if __name__ == '__main__':
 

@@ -11,9 +11,18 @@ from sklearn.preprocessing import StandardScaler
 
 class CDOTModel(object):
 
-    def __init__(self,testing_variable = None, scale = StandardScaler()):
-        self.testing_variable = testing_variable
+    def __init__(self,model_num,test = None, scale = StandardScaler()):
+        self.model_num = model_num
+        self.test = test
         self.std = scale
+
+    def save_model(self):
+        etr = joblib.load('data/model/'+str(self.model_num)+'-etr.pkl')
+        gbr = joblib.load('data/model/'+str(self.model_num)+'-gbr.pkl')
+        std = joblib.load('data/model/'+str(self.model_num)+'-std.pkl')
+        joblib.dump(etr, 'data/model/best'+str(self.model_num)+'-etr.pkl')
+        joblib.dump(gbr, 'data/model/best'+str(self.model_num)+'-gbr.pkl')
+        joblib.dump(std, 'data/model/best'+str(self.model_num)+'-std.pkl')
 
     def fit(self, X, y):
         '''
@@ -31,28 +40,24 @@ class CDOTModel(object):
         # Transformation
         X = self.std.fit_transform(X)
         y = y.values
-        joblib.dump(self.std, 'data/model/std.pkl')
-
-        #Ridge
-        # print ('Fitting Ridge model...')
-        # rid = Ridge(fit_intercept = False, solver = 'lsqr')
-        # rid.fit(X,y)
-        # joblib.dump(rid, 'data/model/rid.pkl')
-        # print ('Ridge complete.\n')
+        joblib.dump(self.std, 'data/model/'+str(self.model_num)+'-std.pkl')
 
         #ExtraTreesRegressor
-        # print ('Fitting ExtraTreesRegressor model...')
-        # etr = ExtraTreesRegressor(bootstrap = False, max_features = 'sqrt', min_samples_leaf = 1, min_samples_split = 2, n_estimators = 1000, n_jobs = -1)
-        # etr.fit(X,y)
-        # joblib.dump(etr, 'data/model/etr.pkl')
-        # print ('ExtraTreesRegressor complete.\n')
+        print ('Fitting ExtraTreesRegressor model...')
+        # etr = ExtraTreesRegressor(bootstrap = False, max_features = 'sqrt', min_samples_leaf = 1,
+        #     min_samples_split = 2, n_estimators = 25, n_jobs = -1, random_state = 10)
+        etr = ExtraTreesRegressor(n_estimators = 25,max_features = 2000, max_depth = 65)
+        etr.fit(X,y)
+        joblib.dump(etr, 'data/model/'+str(self.model_num)+'-etr.pkl')
+        print ('ExtraTreesRegressor complete.\n')
 
         #GradientBoostingRegressor
         print ('Fitting GradientBoostingRegressor model...')
-        gbr = GradientBoostingRegressor(n_estimators = 100, loss = 'huber',
-        max_features = 'sqrt')
+        # gbr = GradientBoostingRegressor(n_estimators = 50, loss = 'ls',
+        # max_features = 'sqrt',max_depth = 3, random_state = 10)
+        gbr = GradientBoostingRegressor(n_estimators = 100,max_features = 1000,loss = 'huber',alpha = 0.75,subsample=0.5)
         gbr.fit(X,y)
-        joblib.dump(gbr, 'data/model/gbr.pkl')
+        joblib.dump(gbr, 'data/model/'+str(self.model_num)+'-gbr.pkl')
         print ('GradientBoostingRegressor Complete')
 
         print ('Model successfully fitted \n')
@@ -72,24 +77,17 @@ class CDOTModel(object):
         '''
 
         #Load models
-        # rid = joblib.load('data/model/rid.pkl')
-        # etr = joblib.load('data/model/etr.pkl')
-        gbr = joblib.load('data/model/gbr.pkl')
-        self.std = joblib.load('data/model/std.pkl')
+        etr = joblib.load('data/model/'+str(self.model_num)+'-etr.pkl')
+        gbr = joblib.load('data/model/'+str(self.model_num)+'-gbr.pkl')
+        self.std = joblib.load('data/model/'+str(self.model_num)+'-std.pkl')
 
         #Add etr precitions to feature matrix
         X = self.std.transform(X)
 
-        # etr_pred = etr.predict(X)
-        # rid_pred = rid.predict(X)
+        etr_pred = etr.predict(X)
         gbr_pred = gbr.predict(X)
 
-        # y_predict = (etr_pred + gbr_pred) / 2
-        y_predict = gbr_pred
-
-        # Reverse transform the target
-        # vec = np.vectorize(lambda y_predict: y_predict**(1/1.4))
-        # y_predict = vec(y_predict)
+        y_predict = (etr_pred + gbr_pred) / 2
 
         return y_predict
 
@@ -126,7 +124,6 @@ class CDOTModel(object):
         '''
 
         return mean_squared_error(y, self.predict(X))/1000000000
-
 
 
 def add_unit_prices():

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<title>CDOT Project Estimator</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<style>
+body,h1 {font-family: "Raleway", sans-serif}
+body, html {height: 100%}
+.bgimg {
+    background-image: url("static/363986.jpg");
+    /*background-color: darkblue;*/
+    min-height: 100%;
+    background-position: center;
+    background-size: cover;
+}
+</style>
+<body>
+
+<div class="bgimg w3-display-container w3-animate-opacity w3-text-white">
+  <div class="w3-display-middle">
+    <h1 class="w3-jumbo w3-animate-top w3-center"><b>CDOT Project Estimator</b></h1>
+    <hr class="w3-border-grey" style="margin:auto;width:40%">
+    <p class="w3-xxlarge w3-center"><b>This application will take inputs from the link below and output an estimated project cost.</b></p>
+    <p class="w3-xlarge w3-center"><a href="https://docs.google.com/spreadsheets/d/1Zt-KDYQP80NmwiWyX0hzukuyBO5YExwohWA9tBqGPhw/edit#gid=1073143104">Bid Item List</a></p>
+
+    <p class="w3-xxlarge w3-center">Select below the estimated range of your project</p>
+
+    <form class="w3-xxlarge w3-center" name="Item_1" action="/predict" method='POST'>
+      <select name="Item_1">
+          <option value="1">$ 0-2 million</option>
+          <option value="2">$ 2-10 million</option>
+          <option value="3">$ 10+ million</option>
+      </select><br><br>
+      <button type="submit">Predict!</button>
+  </form>
+
+</body>
+</html>

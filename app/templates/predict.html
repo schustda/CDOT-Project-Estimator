@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<title>CDOT Project Estimator</title>
+<script>
+function goBack() {
+    window.history.back()
+}
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway">
+<style>
+body,h1 {font-family: "Raleway", sans-serif}
+body, html {height: 100%}
+.bgimg {
+    background-image: url("static/predict_background.png");
+    min-height: 100%;
+    background-position: center;
+    background-size: cover;
+}
+</style>
+<body>
+
+<div class="bgimg w3-display-container w3-animate-opacity w3-text-white">
+  <div class="w3-display-middle">
+    <h1 class="w3-jumbo w3-animate-top">{{ predicted }}</h1>
+    <hr class="w3-border-grey" style="margin:auto;width:40%">
+    <p class="w3-large w3-center">Predicted Project Cost</p>
+
+    <button class="w3-xxlarge w3-center" onclick="goBack()" text-align=center position=absolute top=50%>Go Back</button>
+
+  </div>
+</div>
+
+
+
+
+</body>
+</html>

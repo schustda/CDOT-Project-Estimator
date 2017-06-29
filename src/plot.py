@@ -27,11 +27,12 @@ def asphalt_prices(p,y):
 
 class Plotting(object):
 
-    def __init__(self,data,model,plotname = None):
+    def __init__(self,data,model_num,plotname = None):
 
         self.data = data
-        self.model = model
+        self.model_num = model_num
         self.plotname = plotname
+        self.model = CDOTModel(self.model_num)
 
     def engr_v_model_box(self):
 
@@ -49,26 +50,26 @@ class Plotting(object):
         plt.savefig('images/boxplot'+str(self.plotname)+'.png')
 
     def vs_actual_scatter(self):
-
+        colors = ['red','yellow','green']
         y_engr,y_model,X = self.X_y(self.data,self.model)
         plt.close('all')
 
         #Plots
-        ax = sns.regplot(x = X,y=y_engr,fit_reg = False,
+        ax = sns.regplot(x = X,y=y_engr,fit_reg = False, color = 'blue',
             label = "Engineer Estimate",scatter_kws={"s": 20, 'alpha' : .7})
-        ax = sns.regplot(x = X,y=y_model,fit_reg = False,
+        ax = sns.regplot(x = X,y=y_model,fit_reg = False, color = colors[self.model_num-1],
             label = "Model Estimate",scatter_kws={"s": 20, 'alpha' : .7})
         plt.plot([0,X.max()*1.1],[0,X.max()*1.1],color = 'black',
             linestyle = '--', alpha = 0.4)
 
         #Labels
-        ax.set_ylabel('Predicted Cost ($M)',fontdict={'fontsize':14,'fontweight':1000})
-        ax.set_xlabel('Actual Project Cost ($M)',fontdict={'fontsize':14,'fontweight':1000})
-        ax.set_title('Estimator v Model'+str(self.plotname), fontdict={'fontsize':18,'fontweight':1000})
+        ax.set_ylabel('Predicted Cost ($)',fontdict={'fontsize':14,'fontweight':1000})
+        ax.set_xlabel('Actual Project Cost ($)',fontdict={'fontsize':14,'fontweight':1000})
+        ax.set_title('Estimator vs. Model', fontdict={'fontsize':18,'fontweight':1000})
         ax.legend()
 
         #Export Figure
-        plt.savefig('images/'+str(self.plotname)+'.png')
+        plt.savefig('images/'+str(self.model_num)+'.png',dpi = 600)
 
     def percent_error(self, df,model):
         engineers_estimate = df.engineers_estimate.values

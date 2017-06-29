@@ -4,9 +4,24 @@ from sklearn.model_selection import train_test_split
 
 class CDOTData(object):
 
-    def __init__(self,proj_max = 100000000,full_dataset_created = True):
+    def __init__(self,proj_min = 0, proj_max = 100000000,full_dataset_created = True, model_num = ''):
+        self.proj_min = proj_min
         self.proj_max = proj_max
         self.full_dataset_created = full_dataset_created
+        self.model_num = model_num
+
+    def _get_co(self):
+        co = pd.read_csv('data/raw_data/change_orders.csv',usecols = ['C_O_AMT','CONT_ID'],
+            index_col = 'CONT_ID')
+        co.index.name = 'proposal_number'
+        co = co.applymap(lambda x: float(x.replace('$','').replace(',','')))
+        return co.groupby(co.index).sum()
+
+    def _convert_units(self, df, itm_dict, conversions):
+        for row in df.iterrows():
+            if itm_dict[row[1]['ITM_CD']] != row[1]['UNT_T']:
+                df.loc[row[0]]['BID_QTY'] = row[1]['BID_QTY'] * conversions[(row[1]['UNT_T'],itm_dict[row[1]['ITM_CD']])]
+        return df
 
     def _fill_feature(self, empty_df,dense_df):
         '''
@@ -22,10 +37,8 @@ class CDOTData(object):
         filled_df: pandas dataframe, feature matrix
         '''
         for row in dense_df.iterrows():
-            empty_df[row[1][0]][row[0]] = row[1][2]
-
+            empty_df[row[1]['ITM_CD']][row[0]] = row[1]['BID_QTY']
         return empty_df.fillna(0)
-
 
     def _remove_rows(self,feature_data,target_data):
         '''
@@ -46,7 +59,7 @@ class CDOTData(object):
         # outliers = set(['C19037'])
 
         # Which projects are contained in both the bid item and total price datasets
-        rows_to_keep = set(feature_data.index).intersection(set(target_data.index)) - outliers
+        rows_to_keep = set(feature_data.index).intersection(set(target_data.index))
 
         # Determine which rows to drop in each data set
         drop_rows_feature = set(feature_data.index) - rows_to_keep
@@ -58,13 +71,52 @@ class CDOTData(object):
         '''
         imports the target data as well as the CDOT estimate
         '''
-
         df = pd.read_csv('data/raw_data/bidding_info.csv',
                 usecols=['Proposal Number','Bid Total','Engineers Estimate', 'Awarded'],
                 index_col = 'Proposal Number')
         df = df[df.Awarded == 1].drop('Awarded',axis=1)
         df.columns = ['bid_total','engineers_estimate']
-        return df.applymap(lambda x: x.replace('$','').replace(',','')).astype(float)
+        df = df.applymap(lambda x: x.replace('$','').replace(',','')).astype(float)
+        co = self._get_co()
+        df = df.join(co).fillna(0)
+        df.bid_total = df.bid_total + df.C_O_AMT
+        a = df.drop('C_O_AMT',axis=1)
+        return df.drop('C_O_AMT',axis=1)
+
+    def _import_feature_data(self):
+
+        print ("Importing quantities")
+        df = pd.read_csv('data/raw_data/cont_itm.csv',
+            usecols=['CONT_ID','ITM_CD','LAST_CHNG_YR','BID_QTY','UNT_T'],
+            low_memory=False)
+        df.sort_values(['LAST_CHNG_YR','ITM_CD'],inplace=True)
+        itm_dict = df.groupby('ITM_CD').agg({'UNT_T':'last'}).to_dict()['UNT_T']
+        conversions = {
+             ('CY', 'M3'):1.30795,
+             ('HA', 'ACRE'):0.404686,
+             ('KG', 'LB'):0.453592,
+             ('L', 'GAL'): 3.78541,
+             ('LF', 'M'):3.28084,
+             ('M', 'LF'):0.3048,
+             ('M2', 'SF'):0.092903,
+             ('M2', 'SY'):0.836127,
+             ('M3', 'CF'):0.0283168,
+             ('M3', 'CY'):0.764555,
+             ('M3', 'MFBM'):0.00235974,
+             ('M3', 'MGAL'):0.2642,
+             ('SF', 'M2'):10.7639,
+             ('SY', 'M2'):1.19599,
+             ('TON', 'T'):1,
+             ('T', 'TON'):1,
+             ('L S', 'EACH'):1,
+             ('MNM', 'MKFT'):1,
+             ('LS', 'L S'): 1,
+             ('F A', 'HOUR'):1
+            }
+        print ('converting units')
+        feature_data = self._convert_units(df,itm_dict,conversions)
+        feature_data.set_index('CONT_ID',inplace=True)
+        return feature_data.drop(['LAST_CHNG_YR','UNT_T'],axis=1)
 
     def _create_X_y(self):
         '''
@@ -80,12 +132,9 @@ class CDOTData(object):
             well as CDOT's estimate
         '''
 
-        print ('Importing and cleaning project data... \n')
-
-        feature_data = pd.read_csv('data/raw_data/cont_itm.csv',
-            usecols=['CONT_ID','ITM_CD','SPC_YR','BID_QTY'],
-            index_col = 'CONT_ID')
-
+        print ('Importing and project data... \n')
+        feature_data = self._import_feature_data()
+        print ('Importing target data')
         target_data = self._import_target_data()
 
         # Gather the rows and columns for the feature matrix
@@ -102,7 +151,6 @@ class CDOTData(object):
 
         return X.sort_index(),y.sort_index()
 
-
     def create_train_test(self):
         '''
         Creates train.csv and test.csv within the data folder
@@ -116,6 +164,7 @@ class CDOTData(object):
                 full_dataset[col] = self.y[col]
             full_dataset.index.name = 'project_number'
             full_dataset.fillna(0,inplace=True)
+            full_dataset.sort_index(axis=1,inplace=True)
             full_dataset.to_csv('data/full_dataset.csv')
 
         # If the full dataset does exist, load it...
@@ -123,15 +172,15 @@ class CDOTData(object):
             full_dataset = pd.read_csv('data/full_dataset.csv',index_col='project_number')
 
         # Reduce number of projects to the original scope
-        data = full_dataset[full_dataset.engineers_estimate < self.proj_max]
+        data = full_dataset[(full_dataset.engineers_estimate < self.proj_max) & (full_dataset.engineers_estimate > self.proj_min)]
 
         # Split and save to train.csv and test.csv
         print('Splitting train and test data...')
         train,test = train_test_split(data)
-        train.to_csv('data/train.csv')
-        test.to_csv('data/test.csv')
+        train.to_csv('data/'+str(self.model_num)+'-train.csv')
+        test.to_csv('data/'+str(self.model_num)+'-test.csv')
         print ('Datasets Created \n')
 
 if __name__ == '__main__':
-    data = CDOTData(10000000)
-    df = data.create_train_test()
+    data = CDOTData(model_num=0)
+    data.create_train_test()

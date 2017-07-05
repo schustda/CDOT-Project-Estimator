@@ -2,11 +2,13 @@
 ===========================
 
 In partnership with:
+
+
 ![Cross Validation Process](images/cdot_logo.png)
 
 
 #### Project Objective:
-<b>Use historical data to develop a method that can be used to accurately predict constructions costs for upcoming CDOT projects.</b>
+Use historical data to develop a method that can be used to accurately predict constructions costs for upcoming CDOT projects.
 
 #### Background:
 Colorado Department of Transportation

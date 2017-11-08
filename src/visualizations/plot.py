@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from sklearn.externals import joblib
-from src.model import CDOTModel
+from src.model.model import CDOTModel
 
 
 def asphalt_prices(p,y):
@@ -32,7 +32,7 @@ class Plotting(object):
         self.data = data
         self.model_num = model_num
         self.plotname = plotname
-        self.model = CDOTModel(self.model_num)
+        self.model = CDOTModel()
 
     def engr_v_model_box(self):
 
@@ -57,7 +57,7 @@ class Plotting(object):
         #Plots
         ax = sns.regplot(x = X,y=y_engr,fit_reg = False, color = 'blue',
             label = "Engineer Estimate",scatter_kws={"s": 20, 'alpha' : .7})
-        ax = sns.regplot(x = X,y=y_model,fit_reg = False, color = colors[self.model_num-1],
+        ax = sns.regplot(x = X,y=y_model,fit_reg = False, color = 'red',
             label = "Model Estimate",scatter_kws={"s": 20, 'alpha' : .7})
         plt.plot([0,X.max()*1.1],[0,X.max()*1.1],color = 'black',
             linestyle = '--', alpha = 0.4)
@@ -69,7 +69,7 @@ class Plotting(object):
         ax.legend()
 
         #Export Figure
-        plt.savefig('images/'+str(self.model_num)+'.png',dpi = 600)
+        plt.savefig('images/final_model.png',dpi = 200)
 
     def percent_error(self, df,model):
         engineers_estimate = df.engineers_estimate.values
@@ -82,21 +82,22 @@ class Plotting(object):
 
     def X_y(self, df, model):
         X_engr = df.engineers_estimate
-        X = df.drop(['engineers_estimate','bid_total'],axis=1)
-        X_model = model.predict(X)
+        X = df.drop(['engineers_estimate','bid_total',
+            'bid_days','start_date'],axis=1)
+        y_model = model.predict(X)
         y = df.bid_total
-        return X_engr,X_model,y
+        return X_engr,y_model,y
 
 
 if __name__ == '__main__':
 
     sns.set(style = 'white', palette = 'deep')
-    test = pd.read_csv('data/test.csv',index_col='project_number')
+    test = pd.read_csv('data/model/test.csv',index_col='project_number')
     model = CDOTModel()
 
     plot = Plotting(test,model)
     plot.vs_actual_scatter()
-    plot.engr_v_model_box()
+    # plot.engr_v_model_box()
     # a = plot.engr_v_model_box()
 
 

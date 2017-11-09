@@ -10,7 +10,7 @@ In partnership with:
 #### Link
 Application can be accessed through the link below:
 
-[CDOT Project Estimator](http://www.google.com)
+[CDOT Project Estimator](http://ec2-34-207-187-132.compute-1.amazonaws.com:8105/#)
 
 #### Project Objective:
 Use historical data to develop a method that can be used to accurately predict constructions costs for upcoming CDOT projects.
